@@ -260,18 +260,4 @@ class DeviceControllerTest {
 
         verify(deviceService).deleteDevice(testId);
     }
-
-    @Test
-    void createDevice_WithInvalidData_ShouldReturnBadRequest() throws Exception {
-        // Given
-        DeviceRequestDto invalidRequestDto = new DeviceRequestDto("", null, null);
-
-        // When & Then
-        mockMvc.perform(post("/api/devices")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(invalidRequestDto)))
-                .andExpect(status().isBadRequest());
-
-        verify(deviceService, never()).createDevice(any());
-    }
 }

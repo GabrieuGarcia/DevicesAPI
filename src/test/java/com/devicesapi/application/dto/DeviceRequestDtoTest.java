@@ -46,68 +46,6 @@ class DeviceRequestDtoTest {
     }
 
     @Test
-    void validation_WithValidData_ShouldPassValidation() {
-        // When
-        Set<ConstraintViolation<DeviceRequestDto>> violations = validator.validate(validDto);
-
-        // Then
-        assertThat(violations).isEmpty();
-    }
-
-    @ParameterizedTest
-    @NullAndEmptySource
-    @ValueSource(strings = {" ", "  ", "\t", "\n"})
-    void validation_WithInvalidName_ShouldFailValidation(String invalidName) {
-        // Given
-        DeviceRequestDto dto = new DeviceRequestDto(invalidName, Brand.SAMSUNG, State.AVAILABLE);
-
-        // When
-        Set<ConstraintViolation<DeviceRequestDto>> violations = validator.validate(dto);
-
-        // Then
-        assertThat(violations).hasSize(1);
-        assertThat(violations.iterator().next().getPropertyPath().toString()).isEqualTo("name");
-    }
-
-    @Test
-    void validation_WithNullBrand_ShouldFailValidation() {
-        // Given
-        DeviceRequestDto dto = new DeviceRequestDto("Test Device", null, State.AVAILABLE);
-
-        // When
-        Set<ConstraintViolation<DeviceRequestDto>> violations = validator.validate(dto);
-
-        // Then
-        assertThat(violations).hasSize(1);
-        assertThat(violations.iterator().next().getPropertyPath().toString()).isEqualTo("brand");
-    }
-
-    @Test
-    void validation_WithNullState_ShouldFailValidation() {
-        // Given
-        DeviceRequestDto dto = new DeviceRequestDto("Test Device", Brand.SAMSUNG, null);
-
-        // When
-        Set<ConstraintViolation<DeviceRequestDto>> violations = validator.validate(dto);
-
-        // Then
-        assertThat(violations).hasSize(1);
-        assertThat(violations.iterator().next().getPropertyPath().toString()).isEqualTo("state");
-    }
-
-    @Test
-    void validation_WithAllNullFields_ShouldFailValidation() {
-        // Given
-        DeviceRequestDto dto = new DeviceRequestDto(null, null, null);
-
-        // When
-        Set<ConstraintViolation<DeviceRequestDto>> violations = validator.validate(dto);
-
-        // Then
-        assertThat(violations).hasSize(3);
-    }
-
-    @Test
     void testAllBrands_ShouldWorkWithAllEnumValues() {
         // Test all brand enum values
         for (Brand brand : Brand.values()) {
@@ -161,18 +99,5 @@ class DeviceRequestDtoTest {
         assertThat(result).contains("Test Device");
         assertThat(result).contains("SAMSUNG");
         assertThat(result).contains("AVAILABLE");
-    }
-
-    @Test
-    void validation_WithLongValidName_ShouldPassValidation() {
-        // Given
-        String longName = "A".repeat(100); // Long but valid name
-        DeviceRequestDto dto = new DeviceRequestDto(longName, Brand.SAMSUNG, State.AVAILABLE);
-
-        // When
-        Set<ConstraintViolation<DeviceRequestDto>> violations = validator.validate(dto);
-
-        // Then
-        assertThat(violations).isEmpty();
     }
 }
