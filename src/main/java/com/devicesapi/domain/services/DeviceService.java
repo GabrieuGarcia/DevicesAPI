@@ -19,13 +19,12 @@ public class DeviceService implements DeviceServicePort {
 
     private final DevicePersistencePort devicePersistencePort;
 
-    public Device createDevice(Device device) {
-        return devicePersistencePort.save(device);
+    public void createDevice(Device device) {
+        devicePersistencePort.save(device);
     }
 
-    public Device getDeviceById(UUID id) {
-        return devicePersistencePort.findById(id)
-                .orElseThrow(() -> new DeviceNotFoundException("Device with id '" + id + "' not found"));
+    public Optional<Device> getDeviceById(UUID id) {
+        return devicePersistencePort.findById(id);
     }
 
     public List<Device> getAllDevices() {
@@ -40,8 +39,9 @@ public class DeviceService implements DeviceServicePort {
         return devicePersistencePort.findByState(state);
     }
 
-    public Device patchDevice(UUID id, Device deviceToBePatched) {
-        Device existingDevice = getDeviceById(id);
+    public void patchDevice(UUID id, Device deviceToBePatched) {
+        Device existingDevice = getDeviceById(id)
+                .orElseThrow(() -> new DeviceNotFoundException("Device with id '" + id + "' not found"));
 
         validateDeviceToBeUpdated(deviceToBePatched, existingDevice);
 
@@ -53,11 +53,12 @@ public class DeviceService implements DeviceServicePort {
                 //Cannot be updated
                 existingDevice.getCreationTime());
 
-        return devicePersistencePort.save(deviceToBeSaved);
+        devicePersistencePort.save(deviceToBeSaved);
     }
 
-    public Device updateDevice(UUID id, Device updatedDevice) {
-        Device existingDevice = getDeviceById(id);
+    public void updateDevice(UUID id, Device updatedDevice) {
+        Device existingDevice = getDeviceById(id)
+                .orElseThrow(() -> new DeviceNotFoundException("Device with id '" + id + "' not found"));
         validateDeviceToBeUpdated(updatedDevice, existingDevice);
 
         Device deviceToBeSaved = Device.updateDevice(id,
@@ -67,7 +68,7 @@ public class DeviceService implements DeviceServicePort {
                 //Cannot be updated
                 existingDevice.getCreationTime());
 
-        return devicePersistencePort.save(deviceToBeSaved);
+        devicePersistencePort.save(deviceToBeSaved);
     }
 
     public void deleteDevice(UUID id) {

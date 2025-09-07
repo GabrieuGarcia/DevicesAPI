@@ -44,13 +44,13 @@ public class DeviceController {
         return ResponseEntity.ok().build();
     }
 
-    @GetMapping("/{state}")
+    @GetMapping("/state/{state}")
     public ResponseEntity<List<DeviceResponseDto>> getDeviceByState(@PathVariable String state) {
         State stateEnum;
 
         try {
             stateEnum = State.valueOf(state.toUpperCase());
-        } catch (DeviceBadRequestException e) {
+        } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Enum Value Not Found");
         }
 
@@ -62,13 +62,13 @@ public class DeviceController {
         return ResponseEntity.ok(deviceResponseDtoList);
     }
 
-    @GetMapping("/{brand}")
+    @GetMapping("/brand/{brand}")
     public ResponseEntity<List<DeviceResponseDto>> getDeviceByBrand(@PathVariable String brand) {
         Brand brandEnum = null;
 
         try {
             brandEnum = Brand.valueOf(brand.toUpperCase());
-        } catch (DeviceBadRequestException e) {
+        } catch (IllegalArgumentException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Enum Value Not Found");
         }
 
@@ -88,7 +88,7 @@ public class DeviceController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<DeviceResponseDto> updateDevice(@PathVariable UUID id, @Valid @RequestBody DeviceRequestDto deviceRequestDto) {
+    public ResponseEntity<Void> updateDevice(@PathVariable UUID id, @Valid @RequestBody DeviceRequestDto deviceRequestDto) {
         deviceService.updateDevice(id, deviceRequestDto.toDomain());
         return ResponseEntity.ok().build();
     }

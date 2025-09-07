@@ -10,11 +10,9 @@ import java.util.UUID;
 
 public interface DeviceServicePort {
 
-    void createDevice(Device device);
+    Device createDevice(Device device);
 
     Optional<Device> getDeviceById(UUID id);
-
-    void patchDevice(UUID id, Device device);
 
     List<Device> getAllDevices();
 
@@ -22,7 +20,7 @@ public interface DeviceServicePort {
 
     List<Device> getDevicesByState(State state);
 
-    void updateDevice(UUID id, Device updatedDevice);
+    Device updateDevice(UUID id, Device updatedDevice);
 
     void deleteDevice(UUID id);
 }

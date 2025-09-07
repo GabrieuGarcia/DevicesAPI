@@ -7,9 +7,9 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 public record DeviceRequestDto(
-        String name,
-        Brand brand,
-        State state
+        @NotBlank String name,
+        @NotNull Brand brand,
+        @NotNull State state
 ) {
     public Device toDomain() {
         return Device.createNew(this.name, this.brand, this.state);
