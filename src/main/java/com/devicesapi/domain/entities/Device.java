@@ -32,6 +32,10 @@ public class Device {
         return new Device(null, name, brand, state, LocalDateTime.now());
     }
 
+    public static Device createWithIdAndTime(UUID id, String name, Brand brand, State state, LocalDateTime creationTime) {
+        return new Device(id, name, brand, state, creationTime);
+    }
+
     public static Device updateDevice(UUID id, String name, Brand brand, State state, LocalDateTime creationTime) {
         return new Device(id, name, brand, state, creationTime);
     }

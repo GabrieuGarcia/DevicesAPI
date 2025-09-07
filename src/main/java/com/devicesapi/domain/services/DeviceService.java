@@ -52,12 +52,10 @@ public class DeviceService implements DeviceServicePort {
         return devicePort.save(deviceToBeSaved);
     }
 
-    public boolean deleteDevice(UUID id) {
-        Device deviceToBeDeleted = devicePort.findById(id).orElseThrow(() -> new IllegalArgumentException("Device with id '" + id + "' not found"));
-        if(!State.IN_USE.equals(deviceToBeDeleted.getState())){
-            devicePort.deleteById(id);
-            return true;
+    public void deleteDevice(UUID id) {
+        if (!devicePort.existsById(id)) {
+            throw new IllegalArgumentException("Device with id '" + id + "' not found");
         }
-        return false;
+        devicePort.deleteById(id);
     }
 }

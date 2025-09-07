@@ -4,6 +4,7 @@ import com.devicesapi.domain.entities.Device;
 import com.devicesapi.domain.enums.Brand;
 import com.devicesapi.domain.enums.State;
 import com.devicesapi.domain.ports.DevicePersistencePort;
+import com.devicesapi.domain.ports.DeviceServicePort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -31,6 +32,8 @@ class DeviceServiceTest {
     @InjectMocks
     private DeviceService deviceService;
 
+    private DeviceServicePort deviceServicePort;
+
     private Device testDevice;
     private UUID testId;
 
@@ -44,6 +47,7 @@ class DeviceServiceTest {
                 State.AVAILABLE,
                 LocalDateTime.now()
         );
+        deviceServicePort = deviceService;
     }
 
     @Test
@@ -52,7 +56,7 @@ class DeviceServiceTest {
         when(devicePort.save(any(Device.class))).thenReturn(testDevice);
 
         // When
-        Device result = deviceService.createDevice(testDevice);
+        Device result = deviceServicePort.createDevice(testDevice);
 
         // Then
         assertNotNull(result);
@@ -66,7 +70,7 @@ class DeviceServiceTest {
         when(devicePort.findById(testId)).thenReturn(Optional.of(testDevice));
 
         // When
-        Optional<Device> result = deviceService.getDeviceById(testId);
+        Optional<Device> result = deviceServicePort.getDeviceById(testId);
 
         // Then
         assertTrue(result.isPresent());
@@ -80,7 +84,7 @@ class DeviceServiceTest {
         when(devicePort.findById(testId)).thenReturn(Optional.empty());
 
         // When
-        Optional<Device> result = deviceService.getDeviceById(testId);
+        Optional<Device> result = deviceServicePort.getDeviceById(testId);
 
         // Then
         assertFalse(result.isPresent());
@@ -94,7 +98,7 @@ class DeviceServiceTest {
         when(devicePort.findAll()).thenReturn(devices);
 
         // When
-        List<Device> result = deviceService.getAllDevices();
+        List<Device> result = deviceServicePort.getAllDevices();
 
         // Then
         assertEquals(1, result.size());
@@ -115,7 +119,7 @@ class DeviceServiceTest {
         when(devicePort.save(any(Device.class))).thenReturn(updatedDevice);
 
         // When
-        Device result = deviceService.updateDevice(testId, updatedDevice);
+        Device result = deviceServicePort.updateDevice(testId, updatedDevice);
 
         // Then
         assertNotNull(result);
@@ -137,7 +141,7 @@ class DeviceServiceTest {
         // When & Then
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> deviceService.updateDevice(testId, updatedDevice)
+                () -> deviceServicePort.updateDevice(testId, updatedDevice)
         );
         assertEquals("Device with id '" + testId + "' not found", exception.getMessage());
         verify(devicePort).findById(testId);
@@ -150,7 +154,7 @@ class DeviceServiceTest {
         when(devicePort.existsById(testId)).thenReturn(true);
 
         // When
-        deviceService.deleteDevice(testId);
+        deviceServicePort.deleteDevice(testId);
 
         // Then
         verify(devicePort).existsById(testId);
@@ -165,7 +169,7 @@ class DeviceServiceTest {
         // When & Then
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
-                () -> deviceService.deleteDevice(testId)
+                () -> deviceServicePort.deleteDevice(testId)
         );
         assertEquals("Device with id '" + testId + "' not found", exception.getMessage());
         verify(devicePort).existsById(testId);

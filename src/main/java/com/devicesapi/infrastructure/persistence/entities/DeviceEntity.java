@@ -52,6 +52,12 @@ public class DeviceEntity {
     }
     
     public Device toDomain() {
-        return Device.createWithIdAndTime(this.id, this.name, this.brand, this.state, this.creationTime);
+        return Device.createWithIdAndTime(
+                this.id,
+                this.name,
+                this.brand,
+                this.state,
+                this.creationTime
+        );
     }
 }

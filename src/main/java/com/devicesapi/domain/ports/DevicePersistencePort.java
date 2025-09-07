@@ -20,4 +20,6 @@ public interface DevicePersistencePort {
     List<Device> findByState(State state);
 
     void deleteById(UUID id);
+
+    boolean existsById(UUID id);
 }

@@ -37,10 +37,9 @@ public class DeviceController {
 
     @GetMapping
     public ResponseEntity<List<DeviceResponseDto>> getAllDevices() {
-        List<DeviceResponseDto> responseDtos = deviceService.getAllDevices().stream()
+        return ResponseEntity.ok(deviceService.getAllDevices().stream()
                 .map(DeviceResponseDto::fromDomain)
-                .toList();
-        return ResponseEntity.ok(responseDtos);
+                .toList());
     }
 
     @PutMapping("/{id}")
@@ -51,10 +50,7 @@ public class DeviceController {
 
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteDevice(@PathVariable UUID id) {
-        boolean isDeleted = deviceService.deleteDevice(id);
-        if (isDeleted) {
-            return ResponseEntity.ok(null);
-        }
-        return ResponseEntity.unprocessableEntity().build();
+        deviceService.deleteDevice(id);
+        return ResponseEntity.ok().build();
     }
 }

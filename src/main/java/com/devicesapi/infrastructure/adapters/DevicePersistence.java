@@ -16,22 +16,21 @@ import java.util.UUID;
 @Component
 @RequiredArgsConstructor
 public class DevicePersistence implements DevicePersistencePort {
-    
+
     private final DeviceRepository deviceRepository;
-    
+
     @Override
     public Device save(Device device) {
-        DeviceEntity deviceEntity = DeviceEntity.fromDomain(device);
-        DeviceEntity savedEntity = deviceRepository.save(deviceEntity);
+        DeviceEntity savedEntity = deviceRepository.save(DeviceEntity.fromDomain(device));
         return savedEntity.toDomain();
     }
-    
+
     @Override
     public Optional<Device> findById(UUID id) {
         return deviceRepository.findById(id)
                 .map(DeviceEntity::toDomain);
     }
-    
+
     @Override
     public List<Device> findAll() {
         return deviceRepository.findAll()
@@ -39,7 +38,7 @@ public class DevicePersistence implements DevicePersistencePort {
                 .map(DeviceEntity::toDomain)
                 .toList();
     }
-    
+
     @Override
     public List<Device> findByBrand(Brand brand) {
         return deviceRepository.findByBrand(brand)
@@ -47,7 +46,7 @@ public class DevicePersistence implements DevicePersistencePort {
                 .map(DeviceEntity::toDomain)
                 .toList();
     }
-    
+
     @Override
     public List<Device> findByState(State state) {
         return deviceRepository.findByState(state)
@@ -55,14 +54,14 @@ public class DevicePersistence implements DevicePersistencePort {
                 .map(DeviceEntity::toDomain)
                 .toList();
     }
-    
-    @Override
-    public boolean existsById(UUID id) {
-        return deviceRepository.existsById(id);
-    }
-    
+
     @Override
     public void deleteById(UUID id) {
         deviceRepository.deleteById(id);
+    }
+
+    @Override
+    public boolean existsById(UUID id) {
+        return deviceRepository.existsById(id);
     }
 }
