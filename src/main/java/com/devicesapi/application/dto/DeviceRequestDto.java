@@ -7,19 +7,14 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 public record DeviceRequestDto(
-        @NotBlank(message = "Name is required")
         String name,
-        
-        @NotNull(message = "Brand is required")
         Brand brand,
-        
-        @NotNull(message = "State is required")
         State state
 ) {
     public Device toDomain() {
         return Device.createNew(this.name, this.brand, this.state);
     }
-    
+
     public Device toDomain(Device existingDevice) {
         return Device.createWithIdAndTime(
                 existingDevice.getId(),

@@ -1,5 +1,7 @@
 package com.devicesapi.infrastructure.web.controllers.exception;
 
+import com.devicesapi.domain.exception.DeviceBadRequestException;
+import com.devicesapi.domain.exception.DeviceBusinessException;
 import com.devicesapi.domain.exception.DeviceNotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -26,6 +28,24 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                 "timestamp", Instant.now(),
                 "error", "Internal server error",
+                "message", ex.getMessage()
+        ));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, Object>> handleDeviceBadRequest(DeviceBadRequestException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
+                "timestamp", Instant.now(),
+                "error", "Bad Request error",
+                "message", ex.getMessage()
+        ));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<Map<String, Object>> handleDeviceBusiness(DeviceBusinessException ex) {
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(Map.of(
+                "timestamp", Instant.now(),
+                "error", "Business error",
                 "message", ex.getMessage()
         ));
     }

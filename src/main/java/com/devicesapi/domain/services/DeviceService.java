@@ -3,6 +3,7 @@ package com.devicesapi.domain.services;
 import com.devicesapi.domain.entities.Device;
 import com.devicesapi.domain.enums.Brand;
 import com.devicesapi.domain.enums.State;
+import com.devicesapi.domain.exception.DeviceNotFoundException;
 import com.devicesapi.domain.ports.DevicePersistencePort;
 import com.devicesapi.domain.ports.DeviceServicePort;
 import lombok.RequiredArgsConstructor;
@@ -16,31 +17,48 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class DeviceService implements DeviceServicePort {
 
-    private final DevicePersistencePort devicePort;
+    private final DevicePersistencePort devicePersistencePort;
 
     public Device createDevice(Device device) {
-        return devicePort.save(device);
+        return devicePersistencePort.save(device);
     }
 
-    public Optional<Device> getDeviceById(UUID id) {
-        return devicePort.findById(id);
+    public Device getDeviceById(UUID id) {
+        return devicePersistencePort.findById(id)
+                .orElseThrow(() -> new DeviceNotFoundException("Device with id '" + id + "' not found"));
     }
 
     public List<Device> getAllDevices() {
-        return devicePort.findAll();
+        return devicePersistencePort.findAll();
     }
 
     public List<Device> getDevicesByBrand(Brand brand) {
-        return devicePort.findByBrand(brand);
+        return devicePersistencePort.findByBrand(brand);
     }
 
     public List<Device> getDevicesByState(State state) {
-        return devicePort.findByState(state);
+        return devicePersistencePort.findByState(state);
+    }
+
+    public Device patchDevice(UUID id, Device deviceToBePatched) {
+        Device existingDevice = getDeviceById(id);
+
+        validateDeviceToBeUpdated(deviceToBePatched, existingDevice);
+
+        String name = deviceToBePatched.getName().isBlank() ? existingDevice.getName() : deviceToBePatched.getName();
+        Brand brand = deviceToBePatched.getBrand() == null ? existingDevice.getBrand() : deviceToBePatched.getBrand();
+        State state = deviceToBePatched.getState() == null ? existingDevice.getState() : deviceToBePatched.getState();
+
+        Device deviceToBeSaved = Device.updateDevice(id, name, brand, state,
+                //Cannot be updated
+                existingDevice.getCreationTime());
+
+        return devicePersistencePort.save(deviceToBeSaved);
     }
 
     public Device updateDevice(UUID id, Device updatedDevice) {
-        Device existingDevice = devicePort.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Device with id '" + id + "' not found"));
+        Device existingDevice = getDeviceById(id);
+        validateDeviceToBeUpdated(updatedDevice, existingDevice);
 
         Device deviceToBeSaved = Device.updateDevice(id,
                 updatedDevice.getName(),
@@ -49,13 +67,30 @@ public class DeviceService implements DeviceServicePort {
                 //Cannot be updated
                 existingDevice.getCreationTime());
 
-        return devicePort.save(deviceToBeSaved);
+        return devicePersistencePort.save(deviceToBeSaved);
     }
 
     public void deleteDevice(UUID id) {
-        if (!devicePort.existsById(id)) {
-            throw new IllegalArgumentException("Device with id '" + id + "' not found");
+        Device existingDevice = devicePersistencePort.findById(id)
+                .orElseThrow(() -> new DeviceNotFoundException("Device with id '" + id + "' not found"));
+
+        if (isInUse(existingDevice)) {
+            throw new DeviceNotFoundException("Device with id '" + id + "' is still in use and cannot be deleted");
         }
-        devicePort.deleteById(id);
+        devicePersistencePort.deleteById(id);
+    }
+
+    private void validateDeviceToBeUpdated(Device deviceToBeUpdated, Device existingDevice) {
+        if (isInUse(deviceToBeUpdated) && isNameOrBrandDifferent(deviceToBeUpdated, existingDevice)) {
+            throw new DeviceNotFoundException("Device with id '" + deviceToBeUpdated.getId() + "' is still in use so name and and cannot be updated");
+        }
+    }
+
+    private boolean isNameOrBrandDifferent(Device deviceToBeUpdated, Device existingDevice) {
+        return !deviceToBeUpdated.getName().equals(existingDevice.getName()) || !deviceToBeUpdated.getBrand().equals(existingDevice.getBrand());
+    }
+
+    private boolean isInUse(Device device) {
+        return device.getState() == State.IN_USE;
     }
 }
