@@ -26,9 +26,9 @@ public class DeviceController {
     private final DeviceServicePort deviceService;
 
     @PostMapping
-    public ResponseEntity<Void> createDevice(@Valid @RequestBody DeviceRequestDto dto) {
-        deviceService.createDevice(dto.toDomain());
-        return ResponseEntity.status(HttpStatus.CREATED).body(null);
+    public ResponseEntity<DeviceResponseDto> createDevice(@Valid @RequestBody DeviceRequestDto dto) {
+        Device createdDevice = deviceService.createDevice(dto.toDomain());
+        return ResponseEntity.status(HttpStatus.CREATED).body(DeviceResponseDto.fromDomain(createdDevice));
     }
 
     @GetMapping("/{id}")
@@ -88,9 +88,9 @@ public class DeviceController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<Void> updateDevice(@PathVariable UUID id, @Valid @RequestBody DeviceRequestDto deviceRequestDto) {
-        deviceService.updateDevice(id, deviceRequestDto.toDomain());
-        return ResponseEntity.ok().build();
+    public ResponseEntity<DeviceResponseDto> updateDevice(@PathVariable UUID id, @Valid @RequestBody DeviceRequestDto deviceRequestDto) {
+        Device updatedDevice = deviceService.updateDevice(id, deviceRequestDto.toDomain());
+        return ResponseEntity.ok(DeviceResponseDto.fromDomain(updatedDevice));
     }
 
     @DeleteMapping("/{id}")

@@ -19,8 +19,8 @@ public class DeviceService implements DeviceServicePort {
 
     private final DevicePersistencePort devicePersistencePort;
 
-    public void createDevice(Device device) {
-        devicePersistencePort.save(device);
+    public Device createDevice(Device device) {
+        return devicePersistencePort.save(device);
     }
 
     public Optional<Device> getDeviceById(UUID id) {
@@ -56,7 +56,7 @@ public class DeviceService implements DeviceServicePort {
         devicePersistencePort.save(deviceToBeSaved);
     }
 
-    public void updateDevice(UUID id, Device updatedDevice) {
+    public Device updateDevice(UUID id, Device updatedDevice) {
         Device existingDevice = getDeviceById(id)
                 .orElseThrow(() -> new DeviceNotFoundException("Device with id '" + id + "' not found"));
         validateDeviceToBeUpdated(updatedDevice, existingDevice);
@@ -68,7 +68,7 @@ public class DeviceService implements DeviceServicePort {
                 //Cannot be updated
                 existingDevice.getCreationTime());
 
-        devicePersistencePort.save(deviceToBeSaved);
+        return devicePersistencePort.save(deviceToBeSaved);
     }
 
     public void deleteDevice(UUID id) {

@@ -22,5 +22,7 @@ public interface DeviceServicePort {
 
     Device updateDevice(UUID id, Device updatedDevice);
 
+    void patchDevice(UUID id, Device deviceToBePatched);
+
     void deleteDevice(UUID id);
 }
