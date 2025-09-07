@@ -43,6 +43,8 @@ public class DeviceService implements DeviceServicePort {
         Device existingDevice = getDeviceById(id)
                 .orElseThrow(() -> new DeviceNotFoundException("Device with id '" + id + "' not found"));
 
+        validateDeviceToBeUpdated(existingDevice);
+
         String name = deviceToBePatched.getName() == null ? existingDevice.getName() : deviceToBePatched.getName();
         Brand brand = deviceToBePatched.getBrand() == null ? existingDevice.getBrand() : deviceToBePatched.getBrand();
         State state = deviceToBePatched.getState() == null ? existingDevice.getState() : deviceToBePatched.getState();

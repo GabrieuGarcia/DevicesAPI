@@ -26,7 +26,7 @@ public class DeviceController {
     private final DeviceServicePort deviceService;
 
     @PostMapping
-    public ResponseEntity<DeviceResponseDto> createDevice(@RequestBody DeviceRequestDto dto) {
+    public ResponseEntity<DeviceResponseDto> createDevice(@Valid @RequestBody DeviceRequestDto dto) {
         Device createdDevice = deviceService.createDevice(dto.toDomain());
         return ResponseEntity.status(HttpStatus.CREATED).body(DeviceResponseDto.fromDomain(createdDevice));
     }
@@ -39,7 +39,7 @@ public class DeviceController {
     }
 
     @PatchMapping("/{id}")
-    public ResponseEntity<Void> patchDevice(@PathVariable UUID id, @RequestBody DeviceRequestDto dto) {
+    public ResponseEntity<Void> patchDevice(@PathVariable UUID id, @Valid @RequestBody DeviceRequestDto dto) {
         deviceService.patchDevice(id, dto.toDomain());
         return ResponseEntity.ok().build();
     }

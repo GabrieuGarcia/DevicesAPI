@@ -15,7 +15,6 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -36,7 +35,7 @@ class DeviceControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
-    private DeviceServicePort deviceServicePort;
+    private DeviceServicePort deviceService;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -51,268 +50,228 @@ class DeviceControllerTest {
     void setUp() {
         testId = UUID.randomUUID();
         testTime = LocalDateTime.now();
-        testDevice = Device.createWithIdAndTime(
-                testId,
-                "iPhone 15",
-                Brand.APPLE,
-                State.AVAILABLE,
-                testTime
-        );
-        testRequestDto = new DeviceRequestDto("iPhone 15", Brand.APPLE, State.AVAILABLE);
+        testDevice = Device.createWithIdAndTime(testId, "Test Device", Brand.SAMSUNG, State.AVAILABLE, testTime);
+        testRequestDto = new DeviceRequestDto("Test Device", Brand.SAMSUNG, State.AVAILABLE);
         testResponseDto = DeviceResponseDto.fromDomain(testDevice);
     }
 
     @Test
-    void createDevice_ShouldReturnCreated_WhenValidRequest() throws Exception {
+    void createDevice_ShouldReturnCreatedDevice() throws Exception {
         // Given
-        doNothing().when(deviceServicePort).createDevice(any(Device.class));
+        when(deviceService.createDevice(any(Device.class))).thenReturn(testDevice);
 
         // When & Then
         mockMvc.perform(post("/api/devices")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(testRequestDto)))
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(testId.toString()))
+                .andExpect(jsonPath("$.name").value("Test Device"))
+                .andExpect(jsonPath("$.brand").value("SAMSUNG"))
+                .andExpect(jsonPath("$.state").value("AVAILABLE"));
 
-        verify(deviceServicePort).createDevice(any(Device.class));
+        verify(deviceService).createDevice(any(Device.class));
     }
 
     @Test
-    void createDevice_ShouldReturnBadRequest_WhenInvalidRequest() throws Exception {
+    void getDeviceById_WhenDeviceExists_ShouldReturnDevice() throws Exception {
         // Given
-        DeviceRequestDto invalidDto = new DeviceRequestDto(null, null, null);
-
-        // When & Then
-        mockMvc.perform(post("/api/devices")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(invalidDto)))
-                .andExpect(status().isBadRequest());
-
-        verify(deviceServicePort, never()).createDevice(any(Device.class));
-    }
-
-    @Test
-    void getDeviceById_ShouldReturnDevice_WhenDeviceExists() throws Exception {
-        // Given
-        when(deviceServicePort.getDeviceById(testId)).thenReturn(Optional.of(testDevice));
+        when(deviceService.getDeviceById(testId)).thenReturn(Optional.of(testDevice));
 
         // When & Then
         mockMvc.perform(get("/api/devices/{id}", testId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(testId.toString()))
-                .andExpect(jsonPath("$.name").value("iPhone 15"))
-                .andExpect(jsonPath("$.brand").value("APPLE"))
+                .andExpect(jsonPath("$.name").value("Test Device"))
+                .andExpect(jsonPath("$.brand").value("SAMSUNG"))
                 .andExpect(jsonPath("$.state").value("AVAILABLE"));
 
-        verify(deviceServicePort).getDeviceById(testId);
+        verify(deviceService).getDeviceById(testId);
     }
 
     @Test
-    void getDeviceById_ShouldReturnNotFound_WhenDeviceNotExists() throws Exception {
+    void getDeviceById_WhenDeviceNotExists_ShouldReturnNotFound() throws Exception {
         // Given
-        when(deviceServicePort.getDeviceById(testId)).thenReturn(Optional.empty());
+        when(deviceService.getDeviceById(testId)).thenReturn(Optional.empty());
 
         // When & Then
         mockMvc.perform(get("/api/devices/{id}", testId))
                 .andExpect(status().isNotFound());
 
-        verify(deviceServicePort).getDeviceById(testId);
-    }
-
-    @Test
-    void patchDevice_ShouldReturnOk_WhenValidRequest() throws Exception {
-        // Given
-        doNothing().when(deviceServicePort).patchDevice(eq(testId), any(Device.class));
-
-        // When & Then
-        mockMvc.perform(patch("/api/devices/{id}", testId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(testRequestDto)))
-                .andExpect(status().isOk());
-
-        verify(deviceServicePort).patchDevice(eq(testId), any(Device.class));
-    }
-
-    @Test
-    void patchDevice_ShouldReturnNotFound_WhenDeviceNotExists() throws Exception {
-        // Given
-        doThrow(new DeviceNotFoundException("Device with id '" + testId + "' not found"))
-                .when(deviceServicePort).patchDevice(eq(testId), any(Device.class));
-
-        // When & Then
-        mockMvc.perform(patch("/api/devices/{id}", testId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(testRequestDto)))
-                .andExpect(status().isNotFound());
-
-        verify(deviceServicePort).patchDevice(eq(testId), any(Device.class));
-    }
-
-    @Test
-    void getDeviceByState_ShouldReturnDevices_WhenValidState() throws Exception {
-        // Given
-        List<Device> devices = Arrays.asList(testDevice);
-        when(deviceServicePort.getDevicesByState(State.AVAILABLE)).thenReturn(devices);
-
-        // When & Then
-        mockMvc.perform(get("/api/devices/state/{state}", "available"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$[0].id").value(testId.toString()))
-                .andExpect(jsonPath("$[0].state").value("AVAILABLE"));
-
-        verify(deviceServicePort).getDevicesByState(State.AVAILABLE);
-    }
-
-    @Test
-    void getDeviceByState_ShouldReturnBadRequest_WhenInvalidState() throws Exception {
-        // When & Then
-        mockMvc.perform(get("/api/devices/state/{state}", "invalid_state"))
-                .andExpect(status().isBadRequest());
-
-        verify(deviceServicePort, never()).getDevicesByState(any(State.class));
-    }
-
-    @Test
-    void getDeviceByBrand_ShouldReturnDevices_WhenValidBrand() throws Exception {
-        // Given
-        List<Device> devices = Arrays.asList(testDevice);
-        when(deviceServicePort.getDevicesByBrand(Brand.APPLE)).thenReturn(devices);
-
-        // When & Then
-        mockMvc.perform(get("/api/devices/brand/{brand}", "apple"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$[0].id").value(testId.toString()))
-                .andExpect(jsonPath("$[0].brand").value("APPLE"));
-
-        verify(deviceServicePort).getDevicesByBrand(Brand.APPLE);
-    }
-
-    @Test
-    void getDeviceByBrand_ShouldReturnBadRequest_WhenInvalidBrand() throws Exception {
-        // When & Then
-        mockMvc.perform(get("/api/devices/brand/{brand}", "invalid_brand"))
-                .andExpect(status().isBadRequest());
-
-        verify(deviceServicePort, never()).getDevicesByBrand(any(Brand.class));
+        verify(deviceService).getDeviceById(testId);
     }
 
     @Test
     void getAllDevices_ShouldReturnAllDevices() throws Exception {
         // Given
-        Device device2 = Device.createWithIdAndTime(
-                UUID.randomUUID(),
-                "Galaxy S24",
-                Brand.SAMSUNG,
-                State.IN_USE,
-                testTime
-        );
+        Device device2 = Device.createWithIdAndTime(UUID.randomUUID(), "Device 2", Brand.APPLE, State.IN_USE, testTime);
         List<Device> devices = Arrays.asList(testDevice, device2);
-        when(deviceServicePort.getAllDevices()).thenReturn(devices);
+        when(deviceService.getAllDevices()).thenReturn(devices);
 
         // When & Then
         mockMvc.perform(get("/api/devices"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
                 .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].name").value("iPhone 15"))
-                .andExpect(jsonPath("$[1].name").value("Galaxy S24"));
+                .andExpect(jsonPath("$[0].name").value("Test Device"))
+                .andExpect(jsonPath("$[1].name").value("Device 2"));
 
-        verify(deviceServicePort).getAllDevices();
+        verify(deviceService).getAllDevices();
     }
 
     @Test
-    void getAllDevices_ShouldReturnEmptyList_WhenNoDevices() throws Exception {
+    void getDevicesByState_WithValidState_ShouldReturnDevices() throws Exception {
         // Given
-        when(deviceServicePort.getAllDevices()).thenReturn(Arrays.asList());
+        List<Device> availableDevices = Arrays.asList(testDevice);
+        when(deviceService.getDevicesByState(State.AVAILABLE)).thenReturn(availableDevices);
 
         // When & Then
-        mockMvc.perform(get("/api/devices"))
+        mockMvc.perform(get("/api/devices/state/{state}", "available"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$.length()").value(0));
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].state").value("AVAILABLE"));
 
-        verify(deviceServicePort).getAllDevices();
+        verify(deviceService).getDevicesByState(State.AVAILABLE);
     }
 
     @Test
-    void updateDevice_ShouldReturnOk_WhenValidRequest() throws Exception {
-        // Given
-        doNothing().when(deviceServicePort).updateDevice(eq(testId), any(Device.class));
-
+    void getDevicesByState_WithInvalidState_ShouldReturnBadRequest() throws Exception {
         // When & Then
-        mockMvc.perform(put("/api/devices/{id}", testId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(testRequestDto)))
-                .andExpect(status().isOk());
-
-        verify(deviceServicePort).updateDevice(eq(testId), any(Device.class));
-    }
-
-    @Test
-    void updateDevice_ShouldReturnBadRequest_WhenInvalidRequest() throws Exception {
-        // Given
-        DeviceRequestDto invalidDto = new DeviceRequestDto(null, null, null);
-
-        // When & Then
-        mockMvc.perform(put("/api/devices/{id}", testId)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(invalidDto)))
+        mockMvc.perform(get("/api/devices/state/{state}", "invalid_state"))
                 .andExpect(status().isBadRequest());
 
-        verify(deviceServicePort, never()).updateDevice(eq(testId), any(Device.class));
+        verify(deviceService, never()).getDevicesByState(any());
     }
 
     @Test
-    void updateDevice_ShouldReturnNotFound_WhenDeviceNotExists() throws Exception {
+    void getDevicesByBrand_WithValidBrand_ShouldReturnDevices() throws Exception {
         // Given
-        doThrow(new DeviceNotFoundException("Device with id '" + testId + "' not found"))
-                .when(deviceServicePort).updateDevice(eq(testId), any(Device.class));
+        List<Device> samsungDevices = Arrays.asList(testDevice);
+        when(deviceService.getDevicesByBrand(Brand.SAMSUNG)).thenReturn(samsungDevices);
+
+        // When & Then
+        mockMvc.perform(get("/api/devices/brand/{brand}", "samsung"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].brand").value("SAMSUNG"));
+
+        verify(deviceService).getDevicesByBrand(Brand.SAMSUNG);
+    }
+
+    @Test
+    void getDevicesByBrand_WithInvalidBrand_ShouldReturnBadRequest() throws Exception {
+        // When & Then
+        mockMvc.perform(get("/api/devices/brand/{brand}", "invalid_brand"))
+                .andExpect(status().isBadRequest());
+
+        verify(deviceService, never()).getDevicesByBrand(any());
+    }
+
+    @Test
+    void updateDevice_ShouldReturnUpdatedDevice() throws Exception {
+        // Given
+        Device updatedDevice = Device.createWithIdAndTime(testId, "Updated Device", Brand.APPLE, State.IN_USE, testTime);
+        DeviceRequestDto updateRequestDto = new DeviceRequestDto("Updated Device", Brand.APPLE, State.IN_USE);
+        when(deviceService.updateDevice(eq(testId), any(Device.class))).thenReturn(updatedDevice);
 
         // When & Then
         mockMvc.perform(put("/api/devices/{id}", testId)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(testRequestDto)))
-                .andExpect(status().isNotFound());
+                        .content(objectMapper.writeValueAsString(updateRequestDto)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(testId.toString()))
+                .andExpect(jsonPath("$.name").value("Updated Device"))
+                .andExpect(jsonPath("$.brand").value("APPLE"))
+                .andExpect(jsonPath("$.state").value("IN_USE"));
 
-        verify(deviceServicePort).updateDevice(eq(testId), any(Device.class));
+        verify(deviceService).updateDevice(eq(testId), any(Device.class));
     }
 
     @Test
-    void deleteDevice_ShouldReturnOk_WhenDeviceExists() throws Exception {
+    void updateDevice_WhenDeviceNotFound_ShouldReturnNotFound() throws Exception {
         // Given
-        doNothing().when(deviceServicePort).deleteDevice(testId);
+        DeviceRequestDto updateRequestDto = new DeviceRequestDto("Updated Device", Brand.APPLE, State.IN_USE);
+        when(deviceService.updateDevice(eq(testId), any(Device.class)))
+                .thenThrow(new DeviceNotFoundException("Device with id '" + testId + "' not found"));
+
+        // When & Then
+        mockMvc.perform(put("/api/devices/{id}", testId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateRequestDto)))
+                .andExpect(status().isNotFound());
+
+        verify(deviceService).updateDevice(eq(testId), any(Device.class));
+    }
+
+    @Test
+    void patchDevice_ShouldReturnOk() throws Exception {
+        // Given
+        DeviceRequestDto patchRequestDto = new DeviceRequestDto("Patched Device", Brand.GOOGLE, State.INACTIVE);
+        doNothing().when(deviceService).patchDevice(eq(testId), any(Device.class));
+
+        // When & Then
+        mockMvc.perform(patch("/api/devices/{id}", testId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(patchRequestDto)))
+                .andExpect(status().isOk());
+
+        verify(deviceService).patchDevice(eq(testId), any(Device.class));
+    }
+
+    @Test
+    void patchDevice_WhenDeviceNotFound_ShouldReturnNotFound() throws Exception {
+        // Given
+        DeviceRequestDto patchRequestDto = new DeviceRequestDto("Patched Device", Brand.GOOGLE, State.INACTIVE);
+        doThrow(new DeviceNotFoundException("Device with id '" + testId + "' not found"))
+                .when(deviceService).patchDevice(eq(testId), any(Device.class));
+
+        // When & Then
+        mockMvc.perform(patch("/api/devices/{id}", testId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(patchRequestDto)))
+                .andExpect(status().isNotFound());
+
+        verify(deviceService).patchDevice(eq(testId), any(Device.class));
+    }
+
+    @Test
+    void deleteDevice_ShouldReturnOk() throws Exception {
+        // Given
+        doNothing().when(deviceService).deleteDevice(testId);
 
         // When & Then
         mockMvc.perform(delete("/api/devices/{id}", testId))
                 .andExpect(status().isOk());
 
-        verify(deviceServicePort).deleteDevice(testId);
+        verify(deviceService).deleteDevice(testId);
     }
 
     @Test
-    void deleteDevice_ShouldReturnNotFound_WhenDeviceNotExists() throws Exception {
+    void deleteDevice_WhenDeviceNotFound_ShouldReturnNotFound() throws Exception {
         // Given
         doThrow(new DeviceNotFoundException("Device with id '" + testId + "' not found"))
-                .when(deviceServicePort).deleteDevice(testId);
+                .when(deviceService).deleteDevice(testId);
 
         // When & Then
         mockMvc.perform(delete("/api/devices/{id}", testId))
                 .andExpect(status().isNotFound());
 
-        verify(deviceServicePort).deleteDevice(testId);
+        verify(deviceService).deleteDevice(testId);
     }
 
     @Test
-    void deleteDevice_ShouldReturnNotFound_WhenDeviceInUse() throws Exception {
+    void createDevice_WithInvalidData_ShouldReturnBadRequest() throws Exception {
         // Given
-        doThrow(new DeviceNotFoundException("Device with id '" + testId + "' is still in use and cannot be deleted"))
-                .when(deviceServicePort).deleteDevice(testId);
+        DeviceRequestDto invalidRequestDto = new DeviceRequestDto("", null, null);
 
         // When & Then
-        mockMvc.perform(delete("/api/devices/{id}", testId))
-                .andExpect(status().isNotFound());
+        mockMvc.perform(post("/api/devices")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequestDto)))
+                .andExpect(status().isBadRequest());
 
-        verify(deviceServicePort).deleteDevice(testId);
+        verify(deviceService, never()).createDevice(any());
     }
 }

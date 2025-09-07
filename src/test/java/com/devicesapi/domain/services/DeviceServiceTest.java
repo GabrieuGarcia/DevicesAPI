@@ -4,6 +4,7 @@ import com.devicesapi.domain.entities.Device;
 import com.devicesapi.domain.enums.Brand;
 import com.devicesapi.domain.enums.State;
 import com.devicesapi.domain.exception.DeviceNotFoundException;
+import com.devicesapi.domain.exception.DeviceBusinessException;
 import com.devicesapi.domain.ports.DevicePersistencePort;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,7 +19,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -39,26 +41,40 @@ class DeviceServiceTest {
     void setUp() {
         testId = UUID.randomUUID();
         testTime = LocalDateTime.now();
-        testDevice = Device.createWithIdAndTime(
-                testId,
-                "iPhone 15",
-                Brand.APPLE,
-                State.AVAILABLE,
-                testTime
-        );
+        testDevice = Device.createWithIdAndTime(testId, "Test Device", Brand.SAMSUNG, State.AVAILABLE, testTime);
     }
 
     @Test
-    void createDevice_ShouldSaveDevice() {
+    void deleteDevice_WhenDeviceInUse_ShouldThrowException() {
+        // Given
+        Device inUseDevice = Device.createWithIdAndTime(testId, "In Use Device", Brand.SAMSUNG, State.IN_USE, testTime);
+        when(devicePersistencePort.findById(testId)).thenReturn(Optional.of(inUseDevice));
+
+        // When & Then
+        assertThatThrownBy(() -> deviceService.deleteDevice(testId))
+                .isInstanceOf(DeviceNotFoundException.class)
+                .hasMessageContaining("is still in use and cannot be deleted");
+        
+        verify(devicePersistencePort).findById(testId);
+        verify(devicePersistencePort, never()).deleteById(any());
+    }
+
+    @Test
+    void createDevice_ShouldReturnSavedDevice() {
+        // Given
+        Device newDevice = Device.createNew("New Device", Brand.APPLE, State.AVAILABLE);
+        when(devicePersistencePort.save(newDevice)).thenReturn(testDevice);
+
         // When
-        deviceService.createDevice(testDevice);
+        Device result = deviceService.createDevice(newDevice);
 
         // Then
-        verify(devicePersistencePort).save(testDevice);
+        assertThat(result).isEqualTo(testDevice);
+        verify(devicePersistencePort).save(newDevice);
     }
 
     @Test
-    void getDeviceById_ShouldReturnDevice_WhenDeviceExists() {
+    void getDeviceById_WhenDeviceExists_ShouldReturnDevice() {
         // Given
         when(devicePersistencePort.findById(testId)).thenReturn(Optional.of(testDevice));
 
@@ -66,16 +82,12 @@ class DeviceServiceTest {
         Optional<Device> result = deviceService.getDeviceById(testId);
 
         // Then
-        assertTrue(result.isPresent());
-        assertEquals(testDevice.getId(), result.get().getId());
-        assertEquals(testDevice.getName(), result.get().getName());
-        assertEquals(testDevice.getBrand(), result.get().getBrand());
-        assertEquals(testDevice.getState(), result.get().getState());
+        assertThat(result).isPresent().contains(testDevice);
         verify(devicePersistencePort).findById(testId);
     }
 
     @Test
-    void getDeviceById_ShouldReturnEmpty_WhenDeviceNotFound() {
+    void getDeviceById_WhenDeviceNotExists_ShouldReturnEmpty() {
         // Given
         when(devicePersistencePort.findById(testId)).thenReturn(Optional.empty());
 
@@ -83,20 +95,14 @@ class DeviceServiceTest {
         Optional<Device> result = deviceService.getDeviceById(testId);
 
         // Then
-        assertTrue(result.isEmpty());
+        assertThat(result).isEmpty();
         verify(devicePersistencePort).findById(testId);
     }
 
     @Test
     void getAllDevices_ShouldReturnAllDevices() {
         // Given
-        Device device2 = Device.createWithIdAndTime(
-                UUID.randomUUID(),
-                "Galaxy S24",
-                Brand.SAMSUNG,
-                State.IN_USE,
-                testTime
-        );
+        Device device2 = Device.createWithIdAndTime(UUID.randomUUID(), "Device 2", Brand.GOOGLE, State.IN_USE, testTime);
         List<Device> devices = Arrays.asList(testDevice, device2);
         when(devicePersistencePort.findAll()).thenReturn(devices);
 
@@ -104,26 +110,22 @@ class DeviceServiceTest {
         List<Device> result = deviceService.getAllDevices();
 
         // Then
-        assertNotNull(result);
-        assertEquals(2, result.size());
-        assertEquals(devices, result);
+        assertThat(result).hasSize(2).containsExactly(testDevice, device2);
         verify(devicePersistencePort).findAll();
     }
 
     @Test
     void getDevicesByBrand_ShouldReturnDevicesWithSpecificBrand() {
         // Given
-        List<Device> appleDevices = Arrays.asList(testDevice);
-        when(devicePersistencePort.findByBrand(Brand.APPLE)).thenReturn(appleDevices);
+        List<Device> samsungDevices = Arrays.asList(testDevice);
+        when(devicePersistencePort.findByBrand(Brand.SAMSUNG)).thenReturn(samsungDevices);
 
         // When
-        List<Device> result = deviceService.getDevicesByBrand(Brand.APPLE);
+        List<Device> result = deviceService.getDevicesByBrand(Brand.SAMSUNG);
 
         // Then
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals(Brand.APPLE, result.get(0).getBrand());
-        verify(devicePersistencePort).findByBrand(Brand.APPLE);
+        assertThat(result).hasSize(1).containsExactly(testDevice);
+        verify(devicePersistencePort).findByBrand(Brand.SAMSUNG);
     }
 
     @Test
@@ -136,29 +138,64 @@ class DeviceServiceTest {
         List<Device> result = deviceService.getDevicesByState(State.AVAILABLE);
 
         // Then
-        assertNotNull(result);
-        assertEquals(1, result.size());
-        assertEquals(State.AVAILABLE, result.get(0).getState());
+        assertThat(result).hasSize(1).containsExactly(testDevice);
         verify(devicePersistencePort).findByState(State.AVAILABLE);
     }
 
     @Test
-    void patchDevice_ShouldUpdateOnlyProvidedFields() {
+    void updateDevice_WhenDeviceExistsAndNotInUse_ShouldUpdateDevice() {
         // Given
-        Device patchDevice = Device.createWithIdAndTime(
-                testId,
-                "iPhone 15 Pro",
-                null, // Brand not provided
-                State.AVAILABLE,
-                testTime
-        );
-        Device expectedDevice = Device.updateDevice(
-                testId,
-                "iPhone 15 Pro",
-                Brand.APPLE, // Should keep original brand
-                State.AVAILABLE,
-                testTime
-        );
+        Device updatedDevice = Device.createNew("Updated Device", Brand.APPLE, State.AVAILABLE);
+        Device expectedDevice = Device.createWithIdAndTime(testId, "Updated Device", Brand.APPLE, State.AVAILABLE, testTime);
+        
+        when(devicePersistencePort.findById(testId)).thenReturn(Optional.of(testDevice));
+        when(devicePersistencePort.save(any(Device.class))).thenReturn(expectedDevice);
+
+        // When
+        Device result = deviceService.updateDevice(testId, updatedDevice);
+
+        // Then
+        assertThat(result).isEqualTo(expectedDevice);
+        verify(devicePersistencePort).findById(testId);
+        verify(devicePersistencePort).save(any(Device.class));
+    }
+
+    @Test
+    void updateDevice_WhenDeviceNotExists_ShouldThrowException() {
+        // Given
+        Device updatedDevice = Device.createNew("Updated Device", Brand.APPLE, State.AVAILABLE);
+        when(devicePersistencePort.findById(testId)).thenReturn(Optional.empty());
+
+        // When & Then
+        assertThatThrownBy(() -> deviceService.updateDevice(testId, updatedDevice))
+                .isInstanceOf(DeviceNotFoundException.class)
+                .hasMessageContaining("Device with id '" + testId + "' not found");
+        
+        verify(devicePersistencePort).findById(testId);
+        verify(devicePersistencePort, never()).save(any());
+    }
+
+    @Test
+    void updateDevice_WhenDeviceInUse_ShouldThrowException() {
+        // Given
+        Device inUseDevice = Device.createWithIdAndTime(testId, "In Use Device", Brand.SAMSUNG, State.IN_USE, testTime);
+        Device updatedDevice = Device.createNew("Updated Device", Brand.APPLE, State.AVAILABLE);
+        when(devicePersistencePort.findById(testId)).thenReturn(Optional.of(inUseDevice));
+
+        // When & Then
+        assertThatThrownBy(() -> deviceService.updateDevice(testId, updatedDevice))
+                .isInstanceOf(DeviceNotFoundException.class)
+                .hasMessageContaining("is still in use so name and and cannot be updated");
+        
+        verify(devicePersistencePort).findById(testId);
+        verify(devicePersistencePort, never()).save(any());
+    }
+
+    @Test
+    void patchDevice_WhenDeviceExistsAndNotInUse_ShouldPatchDevice() {
+        // Given
+        Device patchDevice = Device.createNew("Patched Device", Brand.GOOGLE, State.INACTIVE);
+        Device expectedDevice = Device.createWithIdAndTime(testId, "Patched Device", Brand.GOOGLE, State.INACTIVE, testTime);
         
         when(devicePersistencePort.findById(testId)).thenReturn(Optional.of(testDevice));
         when(devicePersistencePort.save(any(Device.class))).thenReturn(expectedDevice);
@@ -172,114 +209,41 @@ class DeviceServiceTest {
     }
 
     @Test
-    void patchDevice_ShouldThrowException_WhenDeviceInUseAndNameOrBrandChanged() {
+    void patchDevice_WhenDeviceNotExists_ShouldThrowException() {
         // Given
-        Device inUseDevice = Device.createWithIdAndTime(
-                testId,
-                "iPhone 15",
-                Brand.APPLE,
-                State.IN_USE,
-                testTime
-        );
-        Device patchDevice = Device.createWithIdAndTime(
-                testId,
-                "iPhone 15 Pro", // Different name
-                Brand.APPLE,
-                State.IN_USE,
-                testTime
-        );
-        
-        when(devicePersistencePort.findById(testId)).thenReturn(Optional.of(inUseDevice));
-
-        // When & Then
-        DeviceNotFoundException exception = assertThrows(
-                DeviceNotFoundException.class,
-                () -> deviceService.patchDevice(testId, patchDevice)
-        );
-        assertTrue(exception.getMessage().contains("is still in use so name and and cannot be updated"));
-    }
-
-    @Test
-    void updateDevice_ShouldReturnUpdatedDevice() {
-        // Given
-        Device updatedDevice = Device.createWithIdAndTime(
-                testId,
-                "iPhone 15 Pro",
-                Brand.APPLE,
-                State.AVAILABLE,
-                testTime
-        );
-        Device expectedDevice = Device.updateDevice(
-                testId,
-                "iPhone 15 Pro",
-                Brand.APPLE,
-                State.AVAILABLE,
-                testTime
-        );
-        
-        when(devicePersistencePort.findById(testId)).thenReturn(Optional.of(testDevice));
-        when(devicePersistencePort.save(any(Device.class))).thenReturn(expectedDevice);
-
-        // When
-        deviceService.updateDevice(testId, updatedDevice);
-
-        // Then
-        verify(devicePersistencePort).findById(testId);
-        verify(devicePersistencePort).save(any(Device.class));
-    }
-
-    @Test
-    void updateDevice_ShouldThrowException_WhenDeviceNotFound() {
-        // Given
-        Device updatedDevice = Device.createWithIdAndTime(
-                testId,
-                "iPhone 15 Pro",
-                Brand.APPLE,
-                State.AVAILABLE,
-                testTime
-        );
+        Device patchDevice = Device.createNew("Patched Device", Brand.GOOGLE, State.INACTIVE);
         when(devicePersistencePort.findById(testId)).thenReturn(Optional.empty());
 
         // When & Then
-        DeviceNotFoundException exception = assertThrows(
-                DeviceNotFoundException.class,
-                () -> deviceService.updateDevice(testId, updatedDevice)
-        );
-        assertEquals("Device with id '" + testId + "' not found", exception.getMessage());
+        assertThatThrownBy(() -> deviceService.patchDevice(testId, patchDevice))
+                .isInstanceOf(DeviceNotFoundException.class)
+                .hasMessageContaining("Device with id '" + testId + "' not found");
+        
+        verify(devicePersistencePort).findById(testId);
+        verify(devicePersistencePort, never()).save(any());
     }
 
     @Test
-    void updateDevice_ShouldThrowException_WhenDeviceInUseAndNameOrBrandChanged() {
+    void patchDevice_WhenDeviceInUse_ShouldThrowException() {
         // Given
-        Device inUseDevice = Device.createWithIdAndTime(
-                testId,
-                "iPhone 15",
-                Brand.APPLE,
-                State.IN_USE,
-                testTime
-        );
-        Device updatedDevice = Device.createWithIdAndTime(
-                testId,
-                "iPhone 15 Pro", // Different name
-                Brand.APPLE,
-                State.IN_USE,
-                testTime
-        );
-        
+        Device inUseDevice = Device.createWithIdAndTime(testId, "In Use Device", Brand.SAMSUNG, State.IN_USE, testTime);
+        Device patchDevice = Device.createNew("Patched Device", Brand.GOOGLE, State.INACTIVE);
         when(devicePersistencePort.findById(testId)).thenReturn(Optional.of(inUseDevice));
 
         // When & Then
-        DeviceNotFoundException exception = assertThrows(
-                DeviceNotFoundException.class,
-                () -> deviceService.updateDevice(testId, updatedDevice)
-        );
-        assertTrue(exception.getMessage().contains("is still in use so name and and cannot be updated"));
+        assertThatThrownBy(() -> deviceService.patchDevice(testId, patchDevice))
+                .isInstanceOf(DeviceNotFoundException.class)
+                .hasMessageContaining("is still in use so name and and cannot be updated");
+        
+        verify(devicePersistencePort).findById(testId);
+        verify(devicePersistencePort, never()).save(any());
     }
 
     @Test
-    void deleteDevice_ShouldDeleteDevice_WhenDeviceExistsAndNotInUse() {
+    void deleteDevice_WhenDeviceExists_ShouldDeleteDevice() {
         // Given
-        when(devicePersistencePort.findById(testId)).thenReturn(Optional.of(testDevice));
+        Device availableDevice = Device.createWithIdAndTime(testId, "Available Device", Brand.SAMSUNG, State.AVAILABLE, testTime);
+        when(devicePersistencePort.findById(testId)).thenReturn(Optional.of(availableDevice));
 
         // When
         deviceService.deleteDevice(testId);
@@ -290,39 +254,16 @@ class DeviceServiceTest {
     }
 
     @Test
-    void deleteDevice_ShouldThrowException_WhenDeviceNotFound() {
+    void deleteDevice_WhenDeviceNotExists_ShouldThrowException() {
         // Given
         when(devicePersistencePort.findById(testId)).thenReturn(Optional.empty());
 
         // When & Then
-        DeviceNotFoundException exception = assertThrows(
-                DeviceNotFoundException.class,
-                () -> deviceService.deleteDevice(testId)
-        );
-        assertEquals("Device with id '" + testId + "' not found", exception.getMessage());
+        assertThatThrownBy(() -> deviceService.deleteDevice(testId))
+                .isInstanceOf(DeviceNotFoundException.class)
+                .hasMessageContaining("Device with id '" + testId + "' not found");
+        
         verify(devicePersistencePort).findById(testId);
-        verify(devicePersistencePort, never()).deleteById(testId);
-    }
-
-    @Test
-    void deleteDevice_ShouldThrowException_WhenDeviceInUse() {
-        // Given
-        Device inUseDevice = Device.createWithIdAndTime(
-                testId,
-                "iPhone 15",
-                Brand.APPLE,
-                State.IN_USE,
-                testTime
-        );
-        when(devicePersistencePort.findById(testId)).thenReturn(Optional.of(inUseDevice));
-
-        // When & Then
-        DeviceNotFoundException exception = assertThrows(
-                DeviceNotFoundException.class,
-                () -> deviceService.deleteDevice(testId)
-        );
-        assertEquals("Device with id '" + testId + "' is still in use and cannot be deleted", exception.getMessage());
-        verify(devicePersistencePort).findById(testId);
-        verify(devicePersistencePort, never()).deleteById(testId);
+        verify(devicePersistencePort, never()).deleteById(any());
     }
 }

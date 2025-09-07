@@ -16,7 +16,7 @@ class DevicesApiApplicationTest {
 
     @Test
     void applicationStarts() {
-        // This test verifies that the application can start without any configuration issues
-        // The @SpringBootTest annotation ensures the full application context is loaded
+        // This test verifies that the application can start without errors
+        // All beans should be properly configured and dependencies resolved
     }
 }
